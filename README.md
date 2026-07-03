@@ -7,14 +7,14 @@ Homebrew tap for **Award Tracker**, a local, privacy-focused travel rewards and 
 To install **Award Tracker**, first tap this repository, then install the cask:
 
 ```bash
-brew tap <username>/awardtracker
+brew tap kevmando/awardtracker
 brew install --cask awardtracker
 ```
 
 Alternatively, you can install it directly:
 
 ```bash
-brew install --cask <username>/awardtracker/awardtracker
+brew install --cask kevmando/awardtracker/awardtracker
 ```
 
 ## How to use
