@@ -1,0 +1,55 @@
+name: Deploy Cask Upgrade
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., 1.3.4)'
+        required: true
+        type: string
+
+jobs:
+  upgrade-cask:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Determine target version
+        id: target_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${{ github.event.release.tag_name }}"
+          fi
+          # Strip leading 'v' if present (e.g. v1.3.4 -> 1.3.4)
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Run Cask update script
+        run: |
+          python3 .github/scripts/update_cask.py "${{ steps.target_version.outputs.version }}"
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Check if there are changes to commit (updates or new backup files)
+          if [ -n "$(git status --porcelain)" ]; then
+            git add Casks/
+            git commit -m "Update awardtracker to ${{ steps.target_version.outputs.version }}"
+            git push
+          else
+            echo "No changes to deploy."
+          fi
