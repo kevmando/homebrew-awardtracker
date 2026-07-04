@@ -1,6 +1,8 @@
 name: Deploy Cask Upgrade
 
 on:
+  repository_dispatch:
+    types: [new-release]
   schedule:
     # Run daily at 00:00 UTC to check for upstream updates
     - cron: '0 0 * * *'
@@ -27,10 +29,16 @@ jobs:
 
       - name: Run Cask update script
         run: |
-          VERSION_INPUT="${{ github.event.inputs.version }}"
-          if [ -n "$VERSION_INPUT" ]; then
-            python3 .github/scripts/update_cask.py "$VERSION_INPUT"
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            VERSION="${{ github.event.client_payload.version }}"
+            echo "Triggered by repository_dispatch. Version: $VERSION"
+            python3 .github/scripts/update_cask.py "$VERSION"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            echo "Triggered by workflow_dispatch manually. Version: $VERSION"
+            python3 .github/scripts/update_cask.py "$VERSION"
           else
+            echo "Triggered automatically (schedule or dispatch fallback). Auto-detecting version."
             python3 .github/scripts/update_cask.py
           fi
 
