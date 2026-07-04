@@ -4,6 +4,7 @@ import re
 import urllib.request
 import hashlib
 import glob
+import json
 
 def parse_version(version_str):
     # Parse version string into a tuple of integers for comparison, e.g., "1.3.3" -> (1, 3, 3)
@@ -17,6 +18,24 @@ def parse_version(version_str):
             # For non-integer parts like 'beta', append a negative number so they sort earlier
             num_parts.append(-1)
     return tuple(num_parts)
+
+def get_latest_upstream_version():
+    url = "https://api.github.com/repos/shyoo/awardtracker/releases/latest"
+    print(f"Fetching latest version from upstream: {url}")
+    try:
+        req = urllib.request.Request(
+            url, 
+            headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'}
+        )
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            tag_name = data['tag_name']
+            if tag_name.startswith('v'):
+                tag_name = tag_name[1:]
+            return tag_name
+    except Exception as e:
+        print(f"Error fetching latest release from GitHub API: {e}", file=sys.stderr)
+        sys.exit(1)
 
 def get_sha256(url):
     print(f"Downloading release asset from: {url}")
@@ -39,13 +58,12 @@ def get_sha256(url):
     return sha256.hexdigest()
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python3 update_cask.py <new_version>", file=sys.stderr)
-        sys.exit(1)
-
-    new_version = sys.argv[1].strip()
-    if new_version.startswith('v'):
-        new_version = new_version[1:]
+    if len(sys.argv) >= 2 and sys.argv[1].strip():
+        new_version = sys.argv[1].strip()
+        if new_version.startswith('v'):
+            new_version = new_version[1:]
+    else:
+        new_version = get_latest_upstream_version()
 
     cask_path = "Casks/awardtracker.rb"
     if not os.path.exists(cask_path):
