@@ -30,11 +30,12 @@ To set up a basic Homebrew Tap repository for manual Cask management from scratc
     git push
     ```
 5.  **Managing Updates:** Whenever a new release of `awardtracker` is published:
-    - Download the `awardtracker-macos-setup-v<version>.dmg` file from the [releases page](https://github.com/shyoo/awardtracker/releases).
-    - Calculate its SHA-256 checksum in your terminal:
-      ```bash
-      shasum -a 256 awardtracker-macos-setup-v<version>.dmg
-      ```
+    - Get the SHA-256 checksum of the new `awardtracker-macos-setup-v<version>.dmg` asset. You can either:
+      - Copy it directly from the GitHub [releases page](https://github.com/shyoo/awardtracker/releases) (if provided in the release notes or as a `.sha256` asset).
+      - Or download the DMG file and calculate it locally in your terminal:
+        ```bash
+        shasum -a 256 awardtracker-macos-setup-v<version>.dmg
+        ```
     - Open `Casks/awardtracker.rb` in your editor and update the `version` and `sha256` fields with the new values.
     - Commit and push the changes:
       ```bash
