@@ -83,6 +83,11 @@ def main():
     print(f"Current version in cask: {current_version}")
     print(f"Target version: {new_version}")
 
+    # Validate version format to prevent path traversal or injection
+    if not re.match(r'^\d+\.\d+\.\d+(-[\w.]+)?$', new_version):
+        print(f"Error: Invalid version format: {new_version}", file=sys.stderr)
+        sys.exit(1)
+
     if current_version == new_version:
         print("Version is already up to date. Exiting.")
         sys.exit(0)
@@ -101,7 +106,19 @@ def main():
     with open(backup_file, 'w') as f:
         f.write(backup_content)
 
-    # 2. Limit past versions to 5
+    # 2. Load pinned versions (never deleted by cleanup)
+    pinned_versions = set()
+    pinned_path = os.path.join(os.path.dirname(cask_path), ".pinned")
+    if os.path.exists(pinned_path):
+        with open(pinned_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    pinned_versions.add(line)
+        if pinned_versions:
+            print(f"Pinned versions (protected from cleanup): {', '.join(sorted(pinned_versions))}")
+
+    # 3. Limit past versions to 5 (excluding pinned)
     backup_pattern = "Casks/awardtracker@*.rb"
     backup_files = glob.glob(backup_pattern)
     
@@ -110,28 +127,32 @@ def main():
     for path in backup_files:
         # Extract version string e.g. "Casks/awardtracker@1.3.3.rb" -> "1.3.3"
         basename = os.path.basename(path)
-        ver_match = re.search(r'awardtracker@([^.]+?(\.[^.]+?)*)\.rb', basename)
+        ver_match = re.search(r'awardtracker@([^.]+?(\.[^.]+?)*?)\.rb', basename)
         if ver_match:
             ver_str = ver_match.group(1)
-            backups_with_versions.append((parse_version(ver_str), path))
+            backups_with_versions.append((parse_version(ver_str), ver_str, path))
 
     # Sort backups ascending (oldest first)
     backups_with_versions.sort(key=lambda x: x[0])
 
-    if len(backups_with_versions) > 5:
-        num_to_delete = len(backups_with_versions) - 5
-        print(f"Found {len(backups_with_versions)} backup files. Deleting the oldest {num_to_delete}:")
+    # Separate pinned from unpinned backups
+    unpinned = [(v, vs, p) for v, vs, p in backups_with_versions if vs not in pinned_versions]
+    pinned_count = len(backups_with_versions) - len(unpinned)
+
+    if len(unpinned) > 5:
+        num_to_delete = len(unpinned) - 5
+        print(f"Found {len(unpinned)} unpinned backup files (+{pinned_count} pinned). Deleting the oldest {num_to_delete}:")
         for i in range(num_to_delete):
-            old_backup_path = backups_with_versions[i][1]
+            old_backup_path = unpinned[i][2]
             print(f"Removing old backup: {old_backup_path}")
             os.remove(old_backup_path)
 
-    # 3. Calculate new checksum
+    # 4. Calculate new checksum
     download_url = f"https://github.com/shyoo/awardtracker/releases/download/v{new_version}/awardtracker-macos-setup-v{new_version}.dmg"
     new_sha256 = get_sha256(download_url)
     print(f"New SHA256 checksum: {new_sha256}")
 
-    # 4. Deploy new version to main cask file
+    # 5. Deploy new version to main cask file
     # Replace version
     updated_content = re.sub(
         r'^(\s*version\s+)"[^"]+"',

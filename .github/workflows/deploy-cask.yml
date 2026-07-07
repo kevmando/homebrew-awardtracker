@@ -30,15 +30,17 @@ jobs:
           python-version: '3.x'
 
       - name: Run Cask update script
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_VERSION: ${{ github.event.client_payload.version }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            VERSION="${{ github.event.client_payload.version }}"
-            echo "Triggered by repository_dispatch. Version: $VERSION"
-            python3 .github/scripts/update_cask.py "$VERSION"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-            echo "Triggered by workflow_dispatch manually. Version: $VERSION"
-            python3 .github/scripts/update_cask.py "$VERSION"
+          if [ "$EVENT_NAME" = "repository_dispatch" ]; then
+            echo "Triggered by repository_dispatch. Version: $DISPATCH_VERSION"
+            python3 .github/scripts/update_cask.py "$DISPATCH_VERSION"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "$INPUT_VERSION" ]; then
+            echo "Triggered by workflow_dispatch manually. Version: $INPUT_VERSION"
+            python3 .github/scripts/update_cask.py "$INPUT_VERSION"
           else
             echo "Triggered automatically (schedule or dispatch fallback). Auto-detecting version."
             python3 .github/scripts/update_cask.py
