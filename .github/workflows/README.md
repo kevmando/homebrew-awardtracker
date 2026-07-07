@@ -96,7 +96,7 @@ To set up a basic Homebrew Tap repository for manual Cask management from scratc
 
 ---
 
-## Pinning Stable Versions (Excluding from Cleanup)
+## Pinning Specific Versions (Excluding from Cleanup)
 
 By default, the update script keeps only the **5 most recent backup files** (`Casks/awardtracker@<version>.rb`) and automatically deletes the oldest ones. 
 
@@ -136,33 +136,23 @@ This helper script automates the update process:
 *   **Trigger:** Release published in the source repository.
 *   **Job Details:** Uses the `TAP_GITHUB_TOKEN` to call GitHub's repository dispatch API, sending the published tag name to the tap repository. Inputs are safely passed via environment variables to prevent command injection.
 
----
-
 ## Cask Upgrade Sequence Diagram
 
 This diagram shows how both **Semi-Automatic (Option 2)** and **Fully Automatic (Option 3)** update processes run in GitHub Actions:
 
 ```mermaid
 sequenceDiagram
-    autonumber
-    actor User as Tap User / Maintainer
     participant Upstream as Upstream Repo (shyoo/awardtracker)
-    participant Action1 as Upstream Dispatch Workflow (Option 3 Only)
-    participant Action2 as Tap Repo Workflow (Option 2 & 3)
+    participant Action1 as Upstream Dispatch Workflow
+    participant Action2 as Tap Repo (homebrew-awardtracker) Workflow (deploy-cask.yml)
     participant CaskFile as Casks/awardtracker.rb
 
-    Upstream->>Upstream: Publish New Release (vX.Y.Z)
-
-    alt Option 3: Fully Automatic Update (Requires PAT Token)
-        Upstream->>Action1: Triggers dispatch-release.yml
-        Action1->>Action2: Trigger repository_dispatch (new-release event)
-    else Option 2: Semi-Automatic Update (No Tokens)
-        User->>Action2: Trigger manually (workflow_dispatch)
-        Note over Action2: OR automatically via Daily Cron (schedule)
-    end
-
+    Upstream->>Upstream: Publish Release (vX.Y.Z)
+    Note over Upstream, Action1: Triggers dispatch-release.yml
+    Action1->>Action2: Trigger repository_dispatch (new-release)
+    Note over Action2: Triggers deploy-cask.yml
     Action2->>Action2: Run update_cask.py
-    Action2->>CaskFile: Fetch DMG & Update version / SHA-256
-    Action2->>Action2: Commit & push changes to Tap Repo
+    Action2->>CaskFile: Update version, download DMG, recalculate SHA256
+    Action2->>CaskFile: Create backup & manage version limit (respecting .pinned)
+    Action2->>Action2: Commit & push changes
 ```
-
