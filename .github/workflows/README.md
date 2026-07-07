@@ -2,80 +2,98 @@
 
 This directory contains the automation workflows for maintaining and deploying the Homebrew Cask for **Award Tracker**.
 
-Depending on your preference for automation and security (token sharing), you can configure this tap in one of three ways:
+Depending on your preference for automation and security (token sharing), you can configure your personal tap repository in one of three ways:
+
+1.  **Option 1: Manual Cask Management** (No automation, safest)
+2.  **Option 2: Semi-Automatic Update** (Option 1 + Local schedule/manual workflow, safe)
+3.  **Option 3: Fully Automatic Update** (Option 1 + Option 2 + Upstream webhook dispatch, maximum automation)
 
 ---
 
-## Deployment Options
+## Step-by-Step Setup
 
-### Option 1: Manual Cask Management (No Automation, Safest)
-*   **Best for:** Users who want zero security risks, no background scripts, and no GitHub tokens.
-*   **How it works:** You manage the tap repository manually. Whenever a new upstream release is published, you manually download the release asset, calculate its SHA-256, and update `Casks/awardtracker.rb`.
-*   **Setup required:** None. You don't need any workflows enabled or any tokens.
+### Step 1: Base Tap Setup (Option 1 - Manual Cask Management)
 
----
+To set up a basic Homebrew Tap repository for manual Cask management from scratch:
 
-### Option 2: Semi-Automatic Update (Safe, Trigger/Schedule)
-*   **Best for:** Users who want automation but do not want to create or share a Personal Access Token (PAT) between repositories.
-*   **How it works:** Uses the `deploy-cask.yml` workflow along with `update_cask.py` in this tap repository. You can either run the update manually from the GitHub Actions tab or wait for the automatic daily cron schedule (checks upstream at 00:00 UTC).
-*   **Setup required:**
-    1. Keep `deploy-cask.yml` and `.github/scripts/update_cask.py` in this tap repository.
-    2. Ensure the workflow has write permissions (`permissions: contents: write` is already set in the YAML).
-
----
-
-### Option 3: Fully Automatic Update (Maximum Automation)
-*   **Best for:** Maintainers who want the cask tap to update instantly whenever a release is published in the main repository.
-*   **How it works:** A release in the upstream source repository (`shyoo/awardtracker`) triggers a dispatch event to this tap repository to kick off the upgrade.
-    
-    ```mermaid
-    sequenceDiagram
-        participant Upstream as shyoo/awardtracker (App Repo)
-        participant Action1 as Main Repo (Dispatch Workflow)
-        participant Action2 as Tap Repo (Deploy Workflow)
-        participant CaskFile as Casks/awardtracker.rb
-
-        Upstream->>Upstream: Publish Release (vX.Y.Z)
-        Note over Upstream, Action1: Triggers dispatch-release.yml
-        Action1->>Action2: Trigger repository_dispatch (new-release)
-        Note over Action2: Triggers deploy-cask.yml
-        Action2->>Action2: Run update_cask.py
-        Action2->>CaskFile: Update version, download DMG, recalculate SHA256
-        Action2->>CaskFile: Create backup & manage version limit (respecting .pinned)
-        Action2->>Action2: Commit & push changes
+1.  Create a new **public** repository on GitHub. To use the shorthand `brew tap <your-username>/awardtracker` installation command, the repository name **must** start with `homebrew-`. Name it: `homebrew-awardtracker`.
+2.  Clone your new repository locally:
+    ```bash
+    git clone https://github.com/<your-username>/homebrew-awardtracker.git
+    cd homebrew-awardtracker
     ```
-*   **Setup required:** Follow the **Step-by-Step Setup** below to configure the webhook token.
+3.  Create a `Casks` folder and place `Casks/awardtracker.rb` in it (refer to [Casks/awardtracker.rb](../../Casks/awardtracker.rb) for the cask template file).
+4.  Commit and push the initial structure:
+    ```bash
+    git add .
+    git commit -m "Initialize tap repository structure"
+    git push
+    ```
+5.  **Managing Updates:** Whenever a new release of `awardtracker` is published:
+    - Download the `awardtracker-macos-setup-v<version>.dmg` file from the [releases page](https://github.com/shyoo/awardtracker/releases).
+    - Calculate its SHA-256 checksum in your terminal:
+      ```bash
+      shasum -a 256 awardtracker-macos-setup-v<version>.dmg
+      ```
+    - Open `Casks/awardtracker.rb` in your editor and update the `version` and `sha256` fields with the new values.
+    - Commit and push the changes:
+      ```bash
+      git add Casks/awardtracker.rb
+      git commit -m "Update awardtracker to <version>"
+      git push
+      ```
 
 ---
 
-## Step-by-Step Setup for Fully Automatic (Option 3)
+### Step 2: Add Semi-Automation (Option 2 - Trigger & Schedule)
 
-### Step 1: Create a Personal Access Token (PAT)
-1. Go to your GitHub profile settings -> **Developer settings** -> **Personal access tokens** -> **Fine-grained tokens** (recommended).
-2. Click **Generate new token**.
-3. Name it something descriptive like `Award Tracker Tap Dispatcher`.
-4. Under **Repository access**, select **Only select repositories** and choose your tap repository (`kevmando/homebrew-awardtracker`).
-5. Under **Permissions**, click **Repository permissions**:
-   - Set **Contents** to **Read and write** (this grants the token permission to trigger repository dispatch events on that repository).
-6. Click **Generate token** and copy it securely.
+*Builds on top of Step 1.* To configure your repository to update the Cask automatically on a schedule or via manual UI triggers (without needing any Personal Access Tokens):
 
-*Note: If you choose to use a **Classic PAT** instead, you must select the general `repo` scope.*
+1.  Copy the `.github/` folder structure (including `.github/workflows/deploy-cask.yml` and `.github/scripts/update_cask.py`) from this template repository into your own repository.
+2.  In GitHub, go to your **personal tap repository's Settings** -> **Actions** -> **General**:
+    - Under **Workflow permissions**, select **Read and write permissions** (this allows the GitHub Actions runner to commit the cask changes back to the repository).
+    - Click **Save**.
+3.  **To run the update manually:**
+    - Go to the **Actions** tab of your tap repository on GitHub.
+    - Select **Deploy Cask Upgrade** in the sidebar.
+    - Click the **Run workflow** dropdown, optionally enter a version to deploy, and click **Run workflow**.
+4.  **To rely on the schedule:**
+    - The workflow will run automatically every day at 00:00 UTC, check for updates, and update the cask if a new version is available upstream.
 
-### Step 2: Add the Secret to the Source Repository
-1. Go to your **upstream/source repository** page on GitHub (`shyoo/awardtracker`).
-2. Go to **Settings** -> **Secrets and variables** (in the sidebar) -> **Actions**.
-3. Click **New repository secret**.
-4. Set the **Name** to: `TAP_GITHUB_TOKEN`.
-5. Paste your copied token into the **Value** field.
-6. Click **Add secret**.
+---
 
-### Step 3: Add the Dispatch Workflow to the Source Repository
-1. Copy the contents of the reference file [.github/workflows/dispatch-release.yml](dispatch-release.yml) from this tap repository.
-2. In your **upstream/source repository** (`shyoo/awardtracker`), create a new file at `.github/workflows/dispatch-release.yml`.
-3. Paste the contents, commit, and push it.
+### Step 3: Add Full Automation (Option 3 - Instant Dispatch Upgrade)
+
+*Builds on top of Steps 1 and 2.* To make the Cask update instantly whenever a release is published in the source repository:
+
+1.  **Create a Personal Access Token (PAT):**
+    - Go to your GitHub profile settings -> **Developer settings** -> **Personal access tokens** -> **Fine-grained tokens** (recommended).
+    - Click **Generate new token**.
+    - Name it something descriptive like `Award Tracker Tap Dispatcher`.
+    - Under **Repository access**, select **Only select repositories** and choose **your personal tap repository** (e.g., `your-username/homebrew-awardtracker`).
+    - Under **Permissions**, click **Repository permissions**:
+      - Set **Contents** to **Read and write** (this grants the token permission to trigger repository dispatch events on that repository).
+    - Click **Generate token** and copy it securely.
+2.  **Add the Secret to the Source Repository:**
+    - Go to the **source repository** page on GitHub (either `shyoo/awardtracker` if you have write access to it, or **your own fork** of it).
+    - Go to **Settings** -> **Secrets and variables** (in the sidebar) -> **Actions**.
+    - Click **New repository secret**.
+    - Set the **Name** to: `TAP_GITHUB_TOKEN`.
+    - Paste your copied token into the **Value** field.
+    - Click **Add secret**.
+3.  **Add the Dispatch Workflow to the Source Repository:**
+    - Copy the contents of the reference file [.github/workflows/dispatch-release.yml](dispatch-release.yml) from your tap repository.
+    - In the **source repository** (either the main repo or **your own fork**), create a new file at `.github/workflows/dispatch-release.yml`.
+    - In that file, update the repository dispatch URL on line 25 to point to your personal tap repository:
+      ```yaml
+      https://api.github.com/repos/YOUR_GITHUB_USERNAME/homebrew-awardtracker/dispatches
+      ```
+    - Paste the contents, commit, and push it.
 
 > [!IMPORTANT]
-> **The `dispatch-release.yml` file is placed in this tap repository for reference/backup, but it must be configured in the upstream source repository (`shyoo/awardtracker`) to function.**
+> **The `dispatch-release.yml` file is placed in this tap repository for reference/backup, but it must be configured in the upstream source repository (or your fork of it) to function.**
+
+---
 
 ## Pinning Stable Versions (Excluding from Cleanup)
 
@@ -83,9 +101,9 @@ By default, the update script keeps only the **5 most recent backup files** (`Ca
 
 If you want to protect specific stable versions (such as a key milestone release) from being deleted during cleanup, you can pin them:
 
-1. Open the [Casks/.pinned](../Casks/.pinned) file in your tap repository.
-2. Add the version number (e.g., `1.3.0`) on its own line.
-3. You can add comments starting with `#`.
+1.  Open the [Casks/.pinned](../Casks/.pinned) file in your tap repository.
+2.  Add the version number (e.g., `1.3.0`) on its own line.
+3.  You can add comments starting with `#`.
 
 **Example:**
 ```text
@@ -116,3 +134,34 @@ This helper script automates the update process:
 ### 3. Cask Release Dispatcher (`dispatch-release.yml`)
 *   **Trigger:** Release published in the source repository.
 *   **Job Details:** Uses the `TAP_GITHUB_TOKEN` to call GitHub's repository dispatch API, sending the published tag name to the tap repository. Inputs are safely passed via environment variables to prevent command injection.
+
+---
+
+## Cask Upgrade Sequence Diagram
+
+This diagram shows how both **Semi-Automatic (Option 2)** and **Fully Automatic (Option 3)** update processes run in GitHub Actions:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Tap User / Maintainer
+    participant Upstream as Upstream Repo (shyoo/awardtracker)
+    participant Action1 as Upstream Dispatch Workflow (Option 3 Only)
+    participant Action2 as Tap Repo Workflow (Option 2 & 3)
+    participant CaskFile as Casks/awardtracker.rb
+
+    Upstream->>Upstream: Publish New Release (vX.Y.Z)
+
+    alt Option 3: Fully Automatic Update (Requires PAT Token)
+        Upstream->>Action1: Triggers dispatch-release.yml
+        Action1->>Action2: Trigger repository_dispatch (new-release event)
+    else Option 2: Semi-Automatic Update (No Tokens)
+        User->>Action2: Trigger manually (workflow_dispatch)
+        Note over Action2: OR automatically via Daily Cron (schedule)
+    end
+
+    Action2->>Action2: Run update_cask.py
+    Action2->>CaskFile: Fetch DMG & Update version / SHA-256
+    Action2->>Action2: Commit & push changes to Tap Repo
+```
+
