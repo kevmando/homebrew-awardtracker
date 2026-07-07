@@ -55,7 +55,7 @@ The helper Python script automates the tedious parts of a cask update:
 1.  **Format Validation:** Uses regex to validate input versions to prevent directory traversal or malicious injection.
 2.  **Backups:** Creates a copy of the current version as `Casks/awardtracker@<old_version>.rb` and renames the cask inside the file to avoid duplicate definition conflicts.
 3.  **Version Pinning:** Reads `Casks/.pinned` to load protected versions.
-4.  **Cleanup (Retention):** Deletes older backups, maintaining a maximum of **5 unpinned versions** (this limit can be adjusted at [update_cask.py:L142-L143](file:///Users/kevmando/project/awardtracker/.github/scripts/update_cask.py#L142-L143)) while protecting pinned versions from deletion.
+4.  **Cleanup (Retention):** Deletes older backups, maintaining a maximum of **5 unpinned versions** (this limit can be adjusted at [update_cask.py:L142-L143](../scripts/update_cask.py#L142-L143)) while protecting pinned versions from deletion.
 5.  **Download & SHA256:** Downloads the corresponding macOS DMG setup asset from the upstream release to compute its SHA-256 hash.
 6.  **Cask Upgrades:** Writes the new version number and calculated SHA-256 checksum to `Casks/awardtracker.rb`.
 
