@@ -77,6 +77,25 @@ Depending on your preference for automation and security (token sharing), you ca
 > [!IMPORTANT]
 > **The `dispatch-release.yml` file is placed in this tap repository for reference/backup, but it must be configured in the upstream source repository (`shyoo/awardtracker`) to function.**
 
+## Pinning Stable Versions (Excluding from Cleanup)
+
+By default, the update script keeps only the **5 most recent backup files** (`Casks/awardtracker@<version>.rb`) and automatically deletes the oldest ones. 
+
+If you want to protect specific stable versions (such as a key milestone release) from being deleted during cleanup, you can pin them:
+
+1. Open the [Casks/.pinned](../Casks/.pinned) file in your tap repository.
+2. Add the version number (e.g., `1.3.0`) on its own line.
+3. You can add comments starting with `#`.
+
+**Example:**
+```text
+# Stable releases
+1.2.0
+1.3.0
+```
+
+Any backup file matching a version listed in `.pinned` will be skipped during the cleanup phase and will remain in the repository forever.
+
 ---
 
 ## Workflow Details
