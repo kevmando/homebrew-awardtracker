@@ -1,6 +1,6 @@
-# GitHub Actions Workflows
+# How to Set Up Homebrew Tap Repo & Automation
 
-This directory contains the automation workflows for maintaining and deploying the Homebrew Cask for **Award Tracker**.
+This directory contains the automation workflows and documentation for maintaining and deploying the Homebrew Cask for **Award Tracker**.
 
 Depending on your preference for automation and security (token sharing), you can configure your personal tap repository in one of three ways:
 
