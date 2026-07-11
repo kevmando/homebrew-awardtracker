@@ -1,6 +1,6 @@
 cask "awardtracker" do
-  version "1.3.5"
-  sha256 "43227293e35666f9adf8d29f0eeb2bb86bcdd3c5a9ef30eeceb0dc591f6cda55"
+  version "1.3.6"
+  sha256 "efac6d8eabcb9f24c9c1003e7b3d6ac674c3b4df2548ef4e548084375bddd514"
 
   url "https://github.com/shyoo/awardtracker/releases/download/v#{version}/awardtracker-macos-setup-v#{version}.dmg"
   name "Award Tracker"
